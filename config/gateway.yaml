@@ -1,0 +1,20 @@
+access_control:
+  mode: "github_users"              # "allow_all" | "domain" | "group" | "github_org" | "github_users"
+  allowed_github_users:             # for mode: github_users (GitHub only)
+    - "your-github-username"
+  allowed_github_orgs:              # for mode: github_org (GitHub only)
+    - "your-github-org"
+  allowed_domains:                  # for mode: domain (CILogon only)
+    - "@example.org"
+    - "@example.edu"
+  allowed_groups:                   # for mode: group (CILogon isMemberOf claim)
+    - "urn:mace:cilogon.org:group:my-llm-users"
+  admin_emails:                     # admin check for CILogon (email-based)
+    - "admin@example.org"
+  admin_users:                      # admin check for GitHub (username-based)
+    - "your-github-username"
+
+tokens:
+  max_keys_per_user: 10
+  # max_duration_days: 30           # omit to allow never-expiring keys
+  # default_max_budget: 10.0        # omit for unlimited budget

@@ -1,0 +1,16 @@
+.env
+ssl/*.pem
+ssl/*.key
+ssl/*.crt
+vouch/config.yaml
+gateway-api/.venv/
+gateway-api/__pycache__/
+gateway-api/**/__pycache__/
+gateway-app/node_modules/
+gateway-app/.next/
+gateway-app/out/
+*.pyc
+.DS_Store
+.idea/
+pg_data/
+cc-usage-log.md

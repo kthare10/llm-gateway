@@ -1,0 +1,46 @@
+vouch:
+    logLevel: info
+    allowAllUsers: true
+    publicAccess: false
+
+    post_logout_redirect_uris:
+        - https://GATEWAY_FQDN
+
+    jwt:
+        secret: VOUCH_JWT_SECRET
+
+    cookie:
+        secure: true
+        domain: GATEWAY_FQDN
+        name: llm-gateway
+
+    headers:
+        jwt: X-Vouch-Token
+        querystring: access_token
+        redirect: X-Vouch-Requested-URI
+        claims:
+            - aud
+            - email
+            - family_name
+            - given_name
+            - iss
+            - name
+            - oidc
+            - sub
+            - token_id
+        idtoken: X-Vouch-IdP-IdToken
+        accesstoken: X-Vouch-IdP-AccessToken
+        refreshtoken: X-Vouch-IdP-RefreshToken
+
+oauth:
+    provider: oidc
+    client_id: CILOGON_CLIENT_ID
+    client_secret: CILOGON_CLIENT_SECRET
+    auth_url: https://cilogon.org/authorize
+    token_url: https://cilogon.org/oauth2/token
+    user_info_url: https://cilogon.org/oauth2/userinfo
+    scopes:
+        - openid
+        - email
+        - profile
+    callback_url: https://GATEWAY_FQDN/auth

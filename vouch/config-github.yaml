@@ -1,0 +1,36 @@
+vouch:
+    logLevel: info
+    allowAllUsers: true
+    publicAccess: false
+
+    post_logout_redirect_uris:
+        - https://GATEWAY_FQDN
+
+    jwt:
+        secret: VOUCH_JWT_SECRET
+
+    cookie:
+        secure: true
+        # domain: GATEWAY_FQDN  # Omit for IP-based deployments; set to FQDN when using DNS
+        name: llm-gateway
+
+    headers:
+        jwt: X-Vouch-Token
+        user: X-Vouch-User
+        querystring: access_token
+        redirect: X-Vouch-Requested-URI
+        claims:
+            - login
+            - email
+            - name
+        idtoken: X-Vouch-IdP-IdToken
+        accesstoken: X-Vouch-IdP-AccessToken
+
+oauth:
+    provider: github
+    client_id: GITHUB_CLIENT_ID
+    client_secret: GITHUB_CLIENT_SECRET
+    scopes:
+        - user:email
+        - read:org
+    callback_url: https://GATEWAY_FQDN/auth
