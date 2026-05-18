@@ -239,7 +239,14 @@ export default function KeysPage() {
                             )
                           }
                         />
-                        {m.modelId}
+                        <span className="flex items-center gap-1.5">
+                          {m.modelId}
+                          {m.mode === "image_generation" && (
+                            <span className="inline-flex items-center rounded-full bg-purple-100 px-1.5 py-0.5 text-[10px] font-medium text-purple-700">
+                              image
+                            </span>
+                          )}
+                        </span>
                       </label>
                     ))}
                   </div>
@@ -267,7 +274,15 @@ export default function KeysPage() {
       {createdKey && (
         <div className="mt-6">
           <div className="flex gap-1 border-b">
-            {["api-key", "chatbox", "claude-code", "opencode", "curl", "python"].map((tab) => (
+            {[
+              "api-key",
+              "chatbox",
+              "claude-code",
+              "opencode",
+              "curl",
+              "python",
+              ...(createdKey.config_snippets.openai_python_image ? ["image-python"] : []),
+            ].map((tab) => (
               <button
                 key={tab}
                 onClick={() => setActiveTab(tab)}
@@ -277,7 +292,7 @@ export default function KeysPage() {
                     : "border-transparent text-muted-foreground hover:text-foreground"
                 }`}
               >
-                {tab === "api-key" ? "API Key" : tab === "chatbox" ? "Chatbox" : tab === "claude-code" ? "Claude Code" : tab === "opencode" ? "OpenCode" : tab === "curl" ? "curl" : "Python"}
+                {tab === "api-key" ? "API Key" : tab === "chatbox" ? "Chatbox" : tab === "claude-code" ? "Claude Code" : tab === "opencode" ? "OpenCode" : tab === "curl" ? "curl" : tab === "python" ? "Python" : "Image (Python)"}
               </button>
             ))}
           </div>
@@ -417,6 +432,25 @@ export default function KeysPage() {
                 <pre className="rounded-md border bg-muted/50 px-3 py-2 text-sm font-mono whitespace-pre-wrap overflow-x-auto">
                   {createdKey.config_snippets.openai_python}
                 </pre>
+              </div>
+            )}
+
+            {activeTab === "image-python" && createdKey.config_snippets.openai_python_image && (
+              <div>
+                <div className="flex gap-2 mb-3">
+                  <button
+                    onClick={() => handleCopy("image-python", createdKey.config_snippets.openai_python_image!)}
+                    className="inline-flex h-8 items-center rounded-md border px-3 text-xs font-medium hover:bg-accent"
+                  >
+                    {copyStates["image-python"] ? "Copied!" : "Copy"}
+                  </button>
+                </div>
+                <pre className="rounded-md border bg-muted/50 px-3 py-2 text-sm font-mono whitespace-pre-wrap overflow-x-auto">
+                  {createdKey.config_snippets.openai_python_image}
+                </pre>
+                <p className="mt-2 text-sm text-muted-foreground">
+                  Use this snippet with image generation models via the <code className="bg-muted px-1 rounded">images.generate()</code> API.
+                </p>
               </div>
             )}
           </div>

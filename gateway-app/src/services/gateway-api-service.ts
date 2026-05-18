@@ -23,6 +23,7 @@ export interface UserProfile {
 
 export interface ModelInfo {
   modelId: string;
+  mode: string;
 }
 
 export interface ModelsResponse {
@@ -61,6 +62,7 @@ export interface CreateKeyResponse {
     chatbox: object;
     claude_code: object;
     opencode: object;
+    openai_python_image?: string;
   };
 }
 

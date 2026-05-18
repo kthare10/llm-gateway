@@ -28,6 +28,19 @@ async def create_api_key(
     client: LiteLLMClient = Depends(get_litellm_client),
 ):
     try:
+        # Build model_name -> mode mapping from LiteLLM model info
+        model_modes: dict[str, str] = {}
+        try:
+            info_data = await client.list_model_info()
+            for entry in info_data:
+                name = entry.get("model_name", "")
+                if not name or name in model_modes:
+                    continue
+                mi = entry.get("model_info", {})
+                model_modes[name] = mi.get("mode", "chat") if isinstance(mi, dict) else "chat"
+        except Exception:
+            pass  # fall back to empty mapping; all models treated as chat
+
         result = await create_key(
             client=client,
             user_id=user.user_id,
@@ -37,6 +50,7 @@ async def create_api_key(
             duration_days=body.duration_days,
             models=body.models,
             budget=body.max_budget,
+            model_modes=model_modes,
         )
         return result
     except ValueError as e:

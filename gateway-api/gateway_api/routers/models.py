@@ -12,11 +12,23 @@ async def list_models(
     user: CurrentUser = Depends(get_current_user),
     client: LiteLLMClient = Depends(get_litellm_client),
 ):
-    models_data = await client.list_models()
+    models_data = await client.list_model_info()
     fqdn = get_settings().gateway_fqdn
-    model_ids = [m.get("id", "") for m in models_data if m.get("id")]
+
+    # Deduplicate by model name (LiteLLM may return multiple deployments)
+    seen: dict[str, str] = {}
+    for entry in models_data:
+        model_name = entry.get("model_name", "")
+        if not model_name or model_name in seen:
+            continue
+        model_info = entry.get("model_info", {})
+        mode = model_info.get("mode", "chat") if isinstance(model_info, dict) else "chat"
+        seen[model_name] = mode
 
     return {
         "api_host": f"https://{fqdn}",
-        "models": [{"modelId": mid} for mid in model_ids],
+        "models": [
+            {"modelId": name, "mode": mode}
+            for name, mode in seen.items()
+        ],
     }

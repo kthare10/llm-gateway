@@ -43,6 +43,19 @@ model_list:
       description: "Azure OpenAI o3"
       supports_function_calling: true
 
+  - model_name: gpt-image-1
+    litellm_params:
+      model: azure/gpt-image-1
+      api_base: https://renci-nrig.cognitiveservices.azure.com/
+      api_key: os.environ/AZURE_API_KEY
+      api_version: "2025-04-01-preview"
+    model_info:
+      base_model: azure/gpt-image-1
+      description: "Azure OpenAI GPT-Image-1 (Image Generation)"
+      supports_function_calling: false
+      supports_vision: false
+      mode: image_generation
+
   - model_name: Kimi-K2.6
     litellm_params:
       model: azure/Kimi-K2.6

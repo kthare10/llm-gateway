@@ -3,10 +3,18 @@ from gateway_api.services.litellm_client import LiteLLMClient
 
 
 def _generate_config_snippets(
-    api_key: str, models: list[str], fqdn: str
+    api_key: str,
+    models: list[str],
+    fqdn: str,
+    model_modes: dict[str, str] | None = None,
 ) -> dict:
     api_host = f"https://{fqdn}"
-    default_model = models[0] if models else "default"
+    modes = model_modes or {}
+
+    chat_models = [m for m in models if modes.get(m, "chat") not in ("image_generation",)]
+    image_models = [m for m in models if modes.get(m, "chat") == "image_generation"]
+
+    default_model = chat_models[0] if chat_models else (models[0] if models else "default")
 
     curl_snippet = (
         f'curl {api_host}/v1/chat/completions \\\n'
@@ -42,7 +50,7 @@ def _generate_config_snippets(
                     "capabilities": ["reasoning", "tool_use"],
                     "contextWindow": 131072,
                 }
-                for m in models
+                for m in chat_models
             ],
         },
     }
@@ -79,7 +87,7 @@ def _generate_config_snippets(
                             "output": 65536,
                         },
                     }
-                    for m in models
+                    for m in chat_models
                 },
             }
         },
@@ -87,13 +95,32 @@ def _generate_config_snippets(
         "small_model": f"llm-gateway/{default_model}",
     }
 
-    return {
+    snippets: dict = {
         "curl": curl_snippet,
         "openai_python": openai_python,
         "chatbox": chatbox_config,
         "claude_code": claude_code_config,
         "opencode": opencode_config,
     }
+
+    if image_models:
+        default_image_model = image_models[0]
+        snippets["openai_python_image"] = (
+            f"from openai import OpenAI\n\n"
+            f'client = OpenAI(\n'
+            f'    base_url="{api_host}/v1",\n'
+            f'    api_key="{api_key}",\n'
+            f')\n\n'
+            f'result = client.images.generate(\n'
+            f'    model="{default_image_model}",\n'
+            f'    prompt="A cute baby sea otter",\n'
+            f'    n=1,\n'
+            f'    size="1024x1024",\n'
+            f')\n'
+            f'print(result.data[0].url)'
+        )
+
+    return snippets
 
 
 async def create_key(
@@ -105,6 +132,7 @@ async def create_key(
     duration_days: int | None,
     models: list[str] | None,
     budget: float | None,
+    model_modes: dict[str, str] | None = None,
 ) -> dict:
     cfg = get_gateway_config()
     token_cfg = cfg.get("tokens", {})
@@ -158,5 +186,5 @@ async def create_key(
         "expires_at": result.get("expires", ""),
         "max_budget": budget,
         "models": selected_models,
-        "config_snippets": _generate_config_snippets(api_key, selected_models, fqdn),
+        "config_snippets": _generate_config_snippets(api_key, selected_models, fqdn, model_modes),
     }

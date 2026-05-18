@@ -91,6 +91,11 @@ class LiteLLMClient:
         result = await self._request("GET", "/models")
         return result.get("data", []) if isinstance(result, dict) else []
 
+    async def list_model_info(self) -> list:
+        """Return per-model metadata from LiteLLM /model/info (includes mode)."""
+        result = await self._request("GET", "/model/info")
+        return result.get("data", []) if isinstance(result, dict) else []
+
 
 def get_litellm_client() -> LiteLLMClient:
     return LiteLLMClient()
