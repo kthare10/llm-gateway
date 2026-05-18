@@ -46,7 +46,7 @@ model_list:
   - model_name: gpt-image-1
     litellm_params:
       model: azure/gpt-image-1
-      api_base: https://renci-nrig.cognitiveservices.azure.com/
+      api_base: https://your-resource.cognitiveservices.azure.com/
       api_key: os.environ/AZURE_API_KEY
       api_version: "2025-04-01-preview"
     model_info:

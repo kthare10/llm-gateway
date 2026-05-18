@@ -56,6 +56,7 @@ export interface CreateKeyResponse {
   expires_at: string;
   max_budget: number;
   models: string[];
+  image_models: string[];
   config_snippets: {
     curl: string;
     openai_python: string;
@@ -63,6 +64,7 @@ export interface CreateKeyResponse {
     claude_code: object;
     opencode: object;
     openai_python_image?: string;
+    chatbox_image?: object;
   };
 }
 

@@ -119,6 +119,23 @@ def _generate_config_snippets(
             f')\n'
             f'print(result.data[0].url)'
         )
+        snippets["chatbox_image"] = {
+            "id": f"llm-gateway-image-{api_key[:8]}",
+            "name": "LLM Gateway (Image)",
+            "type": "openai",
+            "settings": {
+                "apiHost": api_host,
+                "apiKey": api_key,
+                "models": [
+                    {
+                        "modelId": m,
+                        "capabilities": ["image_generation"],
+                        "contextWindow": 4096,
+                    }
+                    for m in image_models
+                ],
+            },
+        }
 
     return snippets
 
@@ -178,6 +195,8 @@ async def create_key(
 
     api_key = result.get("key", "")
     selected_models = models or []
+    modes = model_modes or {}
+    image_model_names = [m for m in selected_models if modes.get(m, "chat") == "image_generation"]
 
     return {
         "api_key": api_key,
@@ -186,5 +205,6 @@ async def create_key(
         "expires_at": result.get("expires", ""),
         "max_budget": budget,
         "models": selected_models,
+        "image_models": image_model_names,
         "config_snippets": _generate_config_snippets(api_key, selected_models, fqdn, model_modes),
     }

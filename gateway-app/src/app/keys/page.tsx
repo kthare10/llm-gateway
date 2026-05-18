@@ -319,26 +319,86 @@ export default function KeysPage() {
 
             {activeTab === "chatbox" && (
               <div>
-                <div className="flex gap-2 mb-3">
-                  <button
-                    onClick={() => handleCopy("chatbox", JSON.stringify(createdKey.config_snippets.chatbox, null, 2))}
-                    className="inline-flex h-8 items-center rounded-md border px-3 text-xs font-medium hover:bg-accent"
-                  >
-                    {copyStates["chatbox"] ? "Copied!" : "Copy Config"}
-                  </button>
-                  <button
-                    onClick={() => downloadJson(createdKey.config_snippets.chatbox, "chatbox-llm-gateway.json")}
-                    className="inline-flex h-8 items-center rounded-md border px-3 text-xs font-medium hover:bg-accent"
-                  >
-                    Download JSON
-                  </button>
-                </div>
-                <textarea
-                  readOnly
-                  value={JSON.stringify(createdKey.config_snippets.chatbox, null, 2)}
-                  rows={12}
-                  className="w-full rounded-md border bg-muted/50 px-3 py-2 text-sm font-mono"
-                />
+                {createdKey.config_snippets.chatbox_image ? (
+                  <div className="grid grid-cols-2 gap-4">
+                    {/* Chat Models pane */}
+                    <div>
+                      <h4 className="text-sm font-semibold mb-2">Chat Models</h4>
+                      <div className="flex gap-2 mb-2">
+                        <button
+                          onClick={() => handleCopy("chatbox-chat", JSON.stringify(createdKey.config_snippets.chatbox, null, 2))}
+                          className="inline-flex h-7 items-center rounded-md border px-2 text-xs font-medium hover:bg-accent"
+                        >
+                          {copyStates["chatbox-chat"] ? "Copied!" : "Copy"}
+                        </button>
+                        <button
+                          onClick={() => downloadJson(createdKey.config_snippets.chatbox, "chatbox-llm-gateway-chat.json")}
+                          className="inline-flex h-7 items-center rounded-md border px-2 text-xs font-medium hover:bg-accent"
+                        >
+                          Download
+                        </button>
+                      </div>
+                      <textarea
+                        readOnly
+                        value={JSON.stringify(createdKey.config_snippets.chatbox, null, 2)}
+                        rows={14}
+                        className="w-full rounded-md border bg-muted/50 px-3 py-2 text-xs font-mono"
+                      />
+                    </div>
+                    {/* Image Models pane */}
+                    <div>
+                      <h4 className="text-sm font-semibold mb-2">
+                        Image Models
+                        <span className="ml-1.5 inline-flex items-center rounded-full bg-purple-100 px-1.5 py-0.5 text-[10px] font-medium text-purple-700">
+                          image
+                        </span>
+                      </h4>
+                      <div className="flex gap-2 mb-2">
+                        <button
+                          onClick={() => handleCopy("chatbox-image", JSON.stringify(createdKey.config_snippets.chatbox_image, null, 2))}
+                          className="inline-flex h-7 items-center rounded-md border px-2 text-xs font-medium hover:bg-accent"
+                        >
+                          {copyStates["chatbox-image"] ? "Copied!" : "Copy"}
+                        </button>
+                        <button
+                          onClick={() => downloadJson(createdKey.config_snippets.chatbox_image!, "chatbox-llm-gateway-image.json")}
+                          className="inline-flex h-7 items-center rounded-md border px-2 text-xs font-medium hover:bg-accent"
+                        >
+                          Download
+                        </button>
+                      </div>
+                      <textarea
+                        readOnly
+                        value={JSON.stringify(createdKey.config_snippets.chatbox_image, null, 2)}
+                        rows={14}
+                        className="w-full rounded-md border bg-muted/50 px-3 py-2 text-xs font-mono"
+                      />
+                    </div>
+                  </div>
+                ) : (
+                  <>
+                    <div className="flex gap-2 mb-3">
+                      <button
+                        onClick={() => handleCopy("chatbox", JSON.stringify(createdKey.config_snippets.chatbox, null, 2))}
+                        className="inline-flex h-8 items-center rounded-md border px-3 text-xs font-medium hover:bg-accent"
+                      >
+                        {copyStates["chatbox"] ? "Copied!" : "Copy Config"}
+                      </button>
+                      <button
+                        onClick={() => downloadJson(createdKey.config_snippets.chatbox, "chatbox-llm-gateway.json")}
+                        className="inline-flex h-8 items-center rounded-md border px-3 text-xs font-medium hover:bg-accent"
+                      >
+                        Download JSON
+                      </button>
+                    </div>
+                    <textarea
+                      readOnly
+                      value={JSON.stringify(createdKey.config_snippets.chatbox, null, 2)}
+                      rows={12}
+                      className="w-full rounded-md border bg-muted/50 px-3 py-2 text-sm font-mono"
+                    />
+                  </>
+                )}
                 <p className="mt-2 text-sm text-muted-foreground">
                   Import this configuration into Chatbox to connect to the LLM Gateway.
                 </p>
@@ -347,6 +407,14 @@ export default function KeysPage() {
 
             {activeTab === "claude-code" && (
               <div>
+                {createdKey.image_models.length > 0 && (
+                  <div className="rounded-md border border-purple-200 bg-purple-50 px-3 py-2 mb-3 text-sm">
+                    Image generation models ({createdKey.image_models.join(", ")}) are excluded from this config.{" "}
+                    <button onClick={() => setActiveTab("image-python")} className="text-purple-700 underline font-medium">
+                      View Image (Python) snippet
+                    </button>
+                  </div>
+                )}
                 <div className="flex gap-2 mb-3">
                   <button
                     onClick={() => handleCopy("claude", JSON.stringify(createdKey.config_snippets.claude_code, null, 2))}
@@ -376,6 +444,14 @@ export default function KeysPage() {
 
             {activeTab === "opencode" && (
               <div>
+                {createdKey.image_models.length > 0 && (
+                  <div className="rounded-md border border-purple-200 bg-purple-50 px-3 py-2 mb-3 text-sm">
+                    Image generation models ({createdKey.image_models.join(", ")}) are excluded from this config.{" "}
+                    <button onClick={() => setActiveTab("image-python")} className="text-purple-700 underline font-medium">
+                      View Image (Python) snippet
+                    </button>
+                  </div>
+                )}
                 <div className="flex gap-2 mb-3">
                   <button
                     onClick={() => handleCopy("opencode", JSON.stringify(createdKey.config_snippets.opencode, null, 2))}
