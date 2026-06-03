@@ -186,7 +186,7 @@ async def create_key(
     result = await client.generate_key(
         user_id=user_id,
         user_email=user_email,
-        key_alias=name,
+        key_alias=f"{user_id}::{name}",
         duration=f"{duration_days}d" if duration_days else None,
         max_budget=budget,
         models=models if models else None,

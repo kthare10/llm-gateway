@@ -7,6 +7,7 @@ from gateway_api.services.key_service import create_key
 from gateway_api.services.litellm_client import (
     LiteLLMClient,
     LiteLLMClientError,
+    _strip_alias_prefix,
     get_litellm_client,
 )
 
@@ -83,6 +84,8 @@ async def get_key(
     if key_info.get("user_id") != user.user_id and not user.is_admin:
         raise HTTPException(status_code=403, detail="Not your key")
 
+    if "key_alias" in key_info:
+        key_info["key_alias"] = _strip_alias_prefix(key_info["key_alias"])
     return key_info
 
 

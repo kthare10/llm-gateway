@@ -7,6 +7,13 @@ class LiteLLMClientError(Exception):
     pass
 
 
+def _strip_alias_prefix(key_alias: str | None) -> str | None:
+    """Remove the ``{user_id}::`` namespace prefix from a key alias."""
+    if key_alias and "::" in key_alias:
+        return key_alias.split("::", 1)[1]
+    return key_alias
+
+
 class LiteLLMClient:
     """Async client for the LiteLLM Proxy admin API."""
 
@@ -38,7 +45,11 @@ class LiteLLMClient:
     async def create_user(
         self, user_id: str, user_email: str, max_budget: float | None = None
     ) -> dict:
-        payload: dict = {"user_id": user_id, "user_email": user_email}
+        payload: dict = {
+            "user_id": user_id,
+            "user_email": user_email,
+            "auto_create_key": False,
+        }
         if max_budget is not None:
             payload["max_budget"] = max_budget
         return await self._request("POST", "/user/new", json=payload)
@@ -77,7 +88,11 @@ class LiteLLMClient:
             info = await self.get_user_info(user_id)
         except LiteLLMClientError:
             return []
-        return info.get("keys", [])
+        keys = info.get("keys", [])
+        for key in keys:
+            if isinstance(key, dict) and "key_alias" in key:
+                key["key_alias"] = _strip_alias_prefix(key["key_alias"])
+        return keys
 
     async def get_key_info(self, key_id: str) -> dict:
         return await self._request("GET", "/key/info", params={"key": key_id})
