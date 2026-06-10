@@ -30,9 +30,17 @@ async function copyToClipboard(text: string): Promise<boolean> {
 }
 
 function downloadJson(data: object, filename: string) {
-  const blob = new Blob([JSON.stringify(data, null, 2)], {
-    type: "application/json",
-  });
+  downloadBlob(
+    new Blob([JSON.stringify(data, null, 2)], { type: "application/json" }),
+    filename
+  );
+}
+
+function downloadText(text: string, filename: string) {
+  downloadBlob(new Blob([text], { type: "text/plain" }), filename);
+}
+
+function downloadBlob(blob: Blob, filename: string) {
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
   a.href = url;
@@ -278,6 +286,7 @@ export default function KeysPage() {
               "api-key",
               "chatbox",
               "claude-code",
+              "codex",
               "opencode",
               "curl",
               "python",
@@ -292,7 +301,7 @@ export default function KeysPage() {
                     : "border-transparent text-muted-foreground hover:text-foreground"
                 }`}
               >
-                {tab === "api-key" ? "API Key" : tab === "chatbox" ? "Chatbox" : tab === "claude-code" ? "Claude Code" : tab === "opencode" ? "OpenCode" : tab === "curl" ? "curl" : tab === "python" ? "Python" : "Image (Python)"}
+                {tab === "api-key" ? "API Key" : tab === "chatbox" ? "Chatbox" : tab === "claude-code" ? "Claude Code" : tab === "codex" ? "Codex" : tab === "opencode" ? "OpenCode" : tab === "curl" ? "curl" : tab === "python" ? "Python" : "Image (Python)"}
               </button>
             ))}
           </div>
@@ -438,6 +447,43 @@ export default function KeysPage() {
                 <p className="mt-2 text-sm text-muted-foreground">
                   Save to <code className="bg-muted px-1 rounded">~/.claude/settings.json</code> and
                   run <code className="bg-muted px-1 rounded">claude --settings ~/.claude/settings.json</code>
+                </p>
+              </div>
+            )}
+
+            {activeTab === "codex" && (
+              <div>
+                {createdKey.image_models.length > 0 && (
+                  <div className="rounded-md border border-purple-200 bg-purple-50 px-3 py-2 mb-3 text-sm">
+                    Image generation models ({createdKey.image_models.join(", ")}) are excluded from this config.{" "}
+                    <button onClick={() => setActiveTab("image-python")} className="text-purple-700 underline font-medium">
+                      View Image (Python) snippet
+                    </button>
+                  </div>
+                )}
+                <div className="flex gap-2 mb-3">
+                  <button
+                    onClick={() => handleCopy("codex", createdKey.config_snippets.codex)}
+                    className="inline-flex h-8 items-center rounded-md border px-3 text-xs font-medium hover:bg-accent"
+                  >
+                    {copyStates["codex"] ? "Copied!" : "Copy Config"}
+                  </button>
+                  <button
+                    onClick={() => downloadText(createdKey.config_snippets.codex, "config.toml")}
+                    className="inline-flex h-8 items-center rounded-md border px-3 text-xs font-medium hover:bg-accent"
+                  >
+                    Download TOML
+                  </button>
+                </div>
+                <textarea
+                  readOnly
+                  value={createdKey.config_snippets.codex}
+                  rows={10}
+                  className="w-full rounded-md border bg-muted/50 px-3 py-2 text-sm font-mono"
+                />
+                <p className="mt-2 text-sm text-muted-foreground">
+                  Save to <code className="bg-muted px-1 rounded">~/.codex/config.toml</code> (or merge
+                  into your existing file), then run <code className="bg-muted px-1 rounded">codex</code>.
                 </p>
               </div>
             )}

@@ -69,6 +69,17 @@ def _generate_config_snippets(
         }
     }
 
+    codex_config = (
+        f'model = "{default_model}"\n'
+        f'model_provider = "llm-gateway"\n'
+        f"\n"
+        f"[model_providers.llm-gateway]\n"
+        f'name = "LLM Gateway"\n'
+        f'base_url = "{api_host}/v1"\n'
+        f'wire_api = "responses"\n'
+        f'experimental_bearer_token = "{api_key}"\n'
+    )
+
     opencode_config = {
         "$schema": "https://opencode.ai/config.json",
         "provider": {
@@ -100,6 +111,7 @@ def _generate_config_snippets(
         "openai_python": openai_python,
         "chatbox": chatbox_config,
         "claude_code": claude_code_config,
+        "codex": codex_config,
         "opencode": opencode_config,
     }
 

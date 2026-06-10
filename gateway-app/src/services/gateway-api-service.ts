@@ -62,6 +62,7 @@ export interface CreateKeyResponse {
     openai_python: string;
     chatbox: object;
     claude_code: object;
+    codex: string;
     opencode: object;
     openai_python_image?: string;
     chatbox_image?: object;
