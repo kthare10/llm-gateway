@@ -1,7 +1,7 @@
 services:
   # ---- Reverse Proxy ----
   nginx:
-    image: nginx:1-alpine
+    image: docker.io/library/nginx:1-alpine
     container_name: llm-gw-nginx
     ports:
       - "443:443"
@@ -117,7 +117,7 @@ services:
 
   # ---- LiteLLM Database ----
   litellm-db:
-    image: postgres:15-alpine
+    image: docker.io/library/postgres:15-alpine
     container_name: llm-gw-litellm-db
     environment:
       - POSTGRES_DB=litellm
@@ -137,7 +137,7 @@ services:
 
   # ---- Gateway Database ----
   gateway-db:
-    image: postgres:15-alpine
+    image: docker.io/library/postgres:15-alpine
     container_name: llm-gw-gateway-db
     environment:
       - POSTGRES_DB=gateway
@@ -157,7 +157,7 @@ services:
 
   # ---- Redis ----
   redis:
-    image: redis:7-alpine
+    image: docker.io/library/redis:7-alpine
     container_name: llm-gw-redis
     command: redis-server --save 60 1 --loglevel warning --maxmemory 2gb --maxmemory-policy allkeys-lru
     volumes:

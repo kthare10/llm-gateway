@@ -151,6 +151,11 @@ You still need adequate disk (2b) — rootful storage lives under
 - **Health-wait** uses `podman ps --filter name=… --format '{{.Status}}'` and
   looks for `(healthy)`, which is identical on Docker and Podman — no
   engine-specific inspect fields.
+- **Fully-qualified image names** — `docker-compose.yml` pins the Docker Hub
+  images as `docker.io/library/<name>` (nginx, redis, postgres). Podman enforces
+  short-name resolution and, in a non-interactive run (no TTY), aborts with
+  `short-name resolution enforced but cannot prompt without a TTY` for any
+  unaliased short name. Fully-qualifying avoids that and is a no-op for Docker.
 - **External network** `llm_backends` is created by `deploy.sh` via
   `<engine> network create llm_backends` before compose runs.
 - Attach self-hosted model containers to it with
