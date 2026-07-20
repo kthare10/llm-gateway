@@ -1,0 +1,2 @@
+# Keeps the certbot webroot dir present so the nginx bind-mount source always exists.
+# certbot writes ACME HTTP-01 challenges here (see PODMAN.md / nginx default.conf).

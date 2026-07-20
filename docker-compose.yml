@@ -11,6 +11,7 @@ services:
       - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
       - ./ssl/fullchain.pem:/etc/ssl/public.pem:ro
       - ./ssl/privkey.pem:/etc/ssl/private.pem:ro
+      - ./certbot-webroot:/var/www/certbot:ro
     networks:
       - frontend
     depends_on:
