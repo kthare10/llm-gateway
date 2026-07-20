@@ -156,6 +156,11 @@ You still need adequate disk (2b) — rootful storage lives under
   short-name resolution and, in a non-interactive run (no TTY), aborts with
   `short-name resolution enforced but cannot prompt without a TTY` for any
   unaliased short name. Fully-qualifying avoids that and is a no-op for Docker.
+- **Vouch runs as container-root** (`user: "0:0"`) so it can read its
+  bind-mounted `/config` regardless of the host umask. Its upstream image runs
+  as uid 999, which cannot traverse a config dir created under a restrictive
+  umask (e.g. `027` → `0750`); under rootless Podman "root" is the unprivileged
+  runtime user, so this is safe and keeps the config non-world-readable.
 - **External network** `llm_backends` is created by `deploy.sh` via
   `<engine> network create llm_backends` before compose runs.
 - Attach self-hosted model containers to it with

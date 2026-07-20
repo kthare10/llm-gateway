@@ -29,6 +29,12 @@ services:
   vouch-proxy:
     image: quay.io/vouch/vouch-proxy
     container_name: llm-gw-vouch
+    # Run as container-root so it can read the bind-mounted /config regardless of
+    # the host umask. The upstream image runs as uid 999, which cannot traverse a
+    # config dir created under a restrictive umask (e.g. 027 -> 0750); under
+    # rootless Podman "root" maps to the unprivileged runtime user, so this is safe
+    # and keeps the config non-world-readable.
+    user: "0:0"
     volumes:
       - ./vouch:/config:ro
     networks:
