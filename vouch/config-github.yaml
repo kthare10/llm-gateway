@@ -11,7 +11,7 @@ vouch:
 
     cookie:
         secure: true
-        # domain: GATEWAY_FQDN  # Omit for IP-based deployments; set to FQDN when using DNS
+        domain: GATEWAY_FQDN
         name: llm-gateway
 
     headers:
