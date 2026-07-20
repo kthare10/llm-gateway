@@ -42,4 +42,10 @@ sed \
     -e "s|GITHUB_CLIENT_SECRET|${GITHUB_CLIENT_SECRET:-}|g" \
     "$TEMPLATE" > "$SCRIPT_DIR/config.yaml"
 
+# Vouch Proxy runs as a non-root user (uid 999) inside the container. Under
+# rootless Podman that maps to an unprivileged subuid, so the mounted config
+# must be world-readable or Vouch fails with "configuration file not found".
+# ('>' preserves an existing file's mode, so set it explicitly.)
+chmod 0644 "$SCRIPT_DIR/config.yaml"
+
 echo "Done. vouch/config.yaml generated for AUTH_PROVIDER=$AUTH_PROVIDER"
