@@ -176,3 +176,32 @@ starting anything (needs neither disk nor subuids):
 ```bash
 podman-compose -f docker-compose.yml config >/dev/null && echo "compose OK"
 ```
+
+---
+
+## 6. Optional: Let's Encrypt TLS with auto-renew (certbot)
+
+`scripts/certbot-setup.sh` obtains and auto-renews a real certificate via the
+**webroot** method (zero downtime). It relies on the ACME location already in
+`nginx/default.conf` and the `./certbot-webroot` volume in `docker-compose.yml`.
+
+Prerequisites: the stack is running, `GATEWAY_FQDN` in `.env` resolves publicly
+to this host, and inbound TCP/80 is reachable from the internet.
+
+```bash
+# Docker (rootful):
+sudo bash scripts/certbot-setup.sh --email you@example.org
+
+# Rootless Podman under a dedicated service account (reloads nginx as that user):
+sudo CONTAINER_ENGINE=podman PODMAN_USER=<svc-account> \
+     bash scripts/certbot-setup.sh --email you@example.org
+
+# Add --staging first to dry-run against Let's Encrypt staging (avoids rate limits).
+```
+
+The script installs certbot if missing, issues the cert, copies it into
+`ssl/{fullchain,privkey}.pem` (what nginx mounts), reloads nginx, and installs a
+renewal **deploy hook** at `/etc/letsencrypt/renewal-hooks/deploy/llm-gateway.sh`
+so the system `certbot` timer re-copies the renewed cert and reloads nginx
+automatically. It's entirely optional — skip it and drop your own certs into
+`ssl/fullchain.pem` + `ssl/privkey.pem` instead.
