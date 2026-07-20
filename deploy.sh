@@ -16,6 +16,14 @@ info()  { echo -e "${GREEN}[INFO]${NC}  $*"; }
 warn()  { echo -e "${YELLOW}[WARN]${NC}  $*"; }
 error() { echo -e "${RED}[ERROR]${NC} $*" >&2; }
 
+have() { command -v "$1" &>/dev/null; }
+
+# Container engine + compose command, resolved in Step 1.
+ENGINE=""
+COMPOSE=()
+# Thin wrapper so call sites read naturally regardless of engine.
+compose() { "${COMPOSE[@]}" "$@"; }
+
 # ---- Parse arguments ----
 REBUILD=false
 RESTART_ONLY=false
@@ -48,18 +56,75 @@ for arg in "$@"; do
     esac
 done
 
-# ---- Step 1: Validate prerequisites ----
-info "Checking prerequisites..."
+# ---- Step 1: Detect container engine + compose command ----
+info "Detecting container engine..."
 
-if ! command -v docker &>/dev/null; then
-    error "Docker is not installed. Install Docker Engine 24+ and Docker Compose v2."
-    exit 1
+# Override auto-detection with:  CONTAINER_ENGINE=podman bash deploy.sh
+ENGINE="${CONTAINER_ENGINE:-}"
+
+if [ -z "$ENGINE" ]; then
+    if have docker && docker compose version &>/dev/null 2>&1; then
+        ENGINE="docker"
+    elif have docker && have docker-compose; then
+        ENGINE="docker"
+    elif have podman; then
+        ENGINE="podman"
+    elif have docker; then
+        ENGINE="docker"
+    else
+        error "No container engine found. Install Docker Engine 24+ (with Compose v2) or Podman 4+."
+        exit 1
+    fi
 fi
 
-if ! docker compose version &>/dev/null; then
-    error "Docker Compose v2 is not available. Install Docker Compose v2."
-    exit 1
-fi
+case "$ENGINE" in
+    docker)
+        if ! have docker; then
+            error "CONTAINER_ENGINE=docker but 'docker' is not installed."
+            exit 1
+        fi
+        if docker compose version &>/dev/null 2>&1; then
+            COMPOSE=(docker compose)
+        elif have docker-compose; then
+            COMPOSE=(docker-compose)
+        else
+            error "Docker Compose not available. Install Compose v2 ('docker compose') or docker-compose."
+            exit 1
+        fi
+        ;;
+    podman)
+        if ! have podman; then
+            error "CONTAINER_ENGINE=podman but 'podman' is not installed."
+            exit 1
+        fi
+        if have podman-compose; then
+            COMPOSE=(podman-compose)
+        elif podman compose version &>/dev/null 2>&1; then
+            COMPOSE=(podman compose)
+        else
+            error "No Podman compose provider found. Install one of:"
+            error "  python3 -m ensurepip --user && python3 -m pip install --user podman-compose"
+            error "  (or) drop a docker-compose binary at ~/.docker/cli-plugins/docker-compose for 'podman compose'"
+            exit 1
+        fi
+        # Warn early about the most common rootless blocker (see PODMAN.md).
+        if [ "$(podman info --format '{{.Host.Security.Rootless}}' 2>/dev/null)" = "true" ]; then
+            if ! grep -q "^$(id -un):" /etc/subuid 2>/dev/null; then
+                warn "Rootless podman has no /etc/subuid range for '$(id -un)' -- image unpacking WILL fail."
+                warn "A root user must run (once):"
+                warn "  sudo usermod --add-subuids 100000-165535 --add-subgids 100000-165535 $(id -un)"
+                warn "  then, as $(id -un):  podman system migrate"
+                warn "See PODMAN.md for details."
+            fi
+        fi
+        ;;
+    *)
+        error "Unsupported CONTAINER_ENGINE='$ENGINE' (expected 'docker' or 'podman')."
+        exit 1
+        ;;
+esac
+
+info "Container engine: $ENGINE   |   compose: ${COMPOSE[*]}"
 
 # ---- Step 2: Validate configuration files ----
 info "Validating configuration..."
@@ -136,47 +201,65 @@ info "Configuration valid (AUTH_PROVIDER=$AUTH_PROVIDER, FQDN=$GATEWAY_FQDN)"
 info "Generating Vouch Proxy configuration..."
 bash vouch/generate-config.sh
 
-# ---- Step 4: Create external Docker network ----
-info "Ensuring llm_backends Docker network exists..."
-docker network create llm_backends 2>/dev/null && info "Created llm_backends network" || info "llm_backends network already exists"
+# ---- Step 4: Create external container network ----
+info "Ensuring llm_backends network exists..."
+if "$ENGINE" network create llm_backends 2>/dev/null; then
+    info "Created llm_backends network"
+else
+    info "llm_backends network already exists"
+fi
 
 # ---- Step 5: Build and start services ----
 if [ "$RESTART_ONLY" = true ]; then
     info "Restarting all services..."
-    docker compose restart
+    compose restart
 else
-    BUILD_ARGS=""
     if [ "$REBUILD" = true ]; then
-        BUILD_ARGS="--no-cache"
         info "Building all images (no cache)..."
+        compose build --no-cache
     else
-        info "Building and starting all services..."
+        info "Building images..."
+        compose build
     fi
-
-    docker compose up -d --build $BUILD_ARGS
+    info "Starting all services..."
+    compose up -d
 fi
 
 # ---- Step 6: Wait for health checks ----
 info "Waiting for services to become healthy..."
 
-SERVICES=(litellm-db gateway-db redis litellm gateway-api)
+# Wait on container_name values (set in docker-compose.yml) rather than compose
+# service names, so the same logic works for docker compose and podman-compose.
+# All five have a healthcheck, so their `ps` Status reads "... (healthy)" when ready.
+HEALTH_CONTAINERS=(llm-gw-litellm-db llm-gw-gateway-db llm-gw-redis llm-gw-litellm llm-gw-api)
 MAX_WAIT=120
 ELAPSED=0
 
+container_status() {
+    # Loose name filter, then exact-match the Names column ourselves. This avoids
+    # engine-specific regex anchoring: Docker stores container names with a leading
+    # '/', so a "name=^foo$" filter matches nothing on Docker (works on Podman).
+    # `docker/podman ps` both print Names without the slash, so an exact string
+    # compare in awk is reliable on either engine.
+    "$ENGINE" ps --filter "name=$1" --format "{{.Names}}\t{{.Status}}" 2>/dev/null \
+        | awk -F'\t' -v n="$1" '$1 == n { print $2 }'
+}
+
 all_healthy() {
-    for svc in "${SERVICES[@]}"; do
-        local health
-        health=$(docker compose ps --format json "$svc" 2>/dev/null | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('Health',''))" 2>/dev/null || echo "")
-        if [ "$health" != "healthy" ]; then
-            return 1
-        fi
+    local c s
+    for c in "${HEALTH_CONTAINERS[@]}"; do
+        s=$(container_status "$c")
+        case "$s" in
+            *"(healthy)"*) ;;   # ready
+            *) return 1 ;;
+        esac
     done
     return 0
 }
 
 while ! all_healthy; do
     if [ "$ELAPSED" -ge "$MAX_WAIT" ]; then
-        warn "Some services are not healthy after ${MAX_WAIT}s. Check with: docker compose ps"
+        warn "Some services are not healthy after ${MAX_WAIT}s. Check with: ${COMPOSE[*]} ps"
         break
     fi
     sleep 5
@@ -187,7 +270,7 @@ echo ""
 
 # ---- Step 7: Show status ----
 info "Service status:"
-docker compose ps
+compose ps
 
 echo ""
 if [ "$SSL_OK" = true ]; then
@@ -199,8 +282,8 @@ if [ "$SSL_OK" = true ]; then
     echo "  LiteLLM UI:    https://${GATEWAY_FQDN}/litellm/"
     echo "  LLM API:       https://${GATEWAY_FQDN}/v1/"
     echo ""
-    echo "  View logs:     docker compose logs -f"
+    echo "  View logs:     ${COMPOSE[*]} logs -f"
 else
     warn "Deployment started, but TLS certs are missing. NGINX may not be serving HTTPS."
-    echo "  Place certs in ssl/ and run: docker compose restart nginx"
+    echo "  Place certs in ssl/ and run: ${COMPOSE[*]} restart nginx"
 fi

@@ -60,7 +60,7 @@ A standalone, self-service platform for managing LLM API access. It places [Lite
 
 | Requirement | Notes |
 |-------------|-------|
-| Docker Engine 24+ and Docker Compose v2 | `docker compose version` to check |
+| A container engine + compose | **Docker** Engine 24+ with Compose v2 (`docker compose version`), **or** **Podman** 4+ with a compose provider (`podman-compose` or `podman compose`). For Podman — especially rootless — see [PODMAN.md](PODMAN.md). |
 | A server with a public FQDN | e.g. `llm-gateway.example.com` |
 | TLS certificate + private key | Let's Encrypt, institutional CA, or self-signed for testing |
 | An auth provider registration | CILogon OIDC (https://cilogon.org/oauth2/register) **or** GitHub OAuth App (https://github.com/settings/applications/new) |
@@ -82,6 +82,11 @@ cp .env.example .env
 # Place TLS certs in ssl/public.pem and ssl/private.pem
 bash deploy.sh
 ```
+
+`deploy.sh` auto-detects Docker or Podman. To force one, set `CONTAINER_ENGINE=docker`
+or `CONTAINER_ENGINE=podman`. **Podman users** (rootless in particular) should read
+[PODMAN.md](PODMAN.md) first — it covers the compose-provider install and the
+host prerequisites (subuid/subgid ranges, disk, privileged ports).
 
 See the [Deployment Guide](#deployment-guide) for detailed instructions on each step.
 
