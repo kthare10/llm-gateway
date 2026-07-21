@@ -51,6 +51,7 @@ reload_nginx() {
     if [ -n "$PODMAN_USER" ]; then
         local uid; uid="$(id -u "$PODMAN_USER")"
         runuser -u "$PODMAN_USER" -- env XDG_RUNTIME_DIR="/run/user/$uid" \
+            HOME="/home/$PODMAN_USER" PATH="/home/$PODMAN_USER/.local/bin:/usr/bin:/bin" \
             "$ENGINE" exec llm-gw-nginx nginx -s reload
     else
         "$ENGINE" exec llm-gw-nginx nginx -s reload
@@ -75,9 +76,17 @@ certbot certonly --webroot -w "$PROJECT_DIR/certbot-webroot" -d "$FQDN" \
     --email "$EMAIL" --agree-tos --non-interactive $STAGING
 
 # --- copy certs into ssl/ (what nginx bind-mounts) ---
+# docker-compose.yml bind-mounts these two files individually
+# (./ssl/fullchain.pem:/etc/ssl/public.pem). A single-file bind mount is
+# resolved to an inode at container start, so REPLACING the file (install/mv,
+# which allocates a new inode) leaves the running container pinned to the old
+# inode and 'nginx -s reload' keeps serving the stale cert. Overwrite the files
+# IN PLACE (cat > file) to preserve the inode so the reload actually takes.
 LIVE="/etc/letsencrypt/live/$FQDN"
-install -m 644 "$LIVE/fullchain.pem" "$PROJECT_DIR/ssl/fullchain.pem"
-install -m 600 "$LIVE/privkey.pem"   "$PROJECT_DIR/ssl/privkey.pem"
+cat "$LIVE/fullchain.pem" > "$PROJECT_DIR/ssl/fullchain.pem"
+cat "$LIVE/privkey.pem"   > "$PROJECT_DIR/ssl/privkey.pem"
+chmod 644 "$PROJECT_DIR/ssl/fullchain.pem"
+chmod 600 "$PROJECT_DIR/ssl/privkey.pem"
 if [ -n "$PODMAN_USER" ]; then
     chown "$PODMAN_USER:$(id -gn "$PODMAN_USER")" \
         "$PROJECT_DIR/ssl/fullchain.pem" "$PROJECT_DIR/ssl/privkey.pem"
@@ -98,12 +107,15 @@ FQDN="$FQDN"
 ENGINE="$ENGINE"
 PODMAN_USER="$PODMAN_USER"
 LIVE="/etc/letsencrypt/live/\$FQDN"
-install -m 644 "\$LIVE/fullchain.pem" "\$PROJECT_DIR/ssl/fullchain.pem"
-install -m 600 "\$LIVE/privkey.pem"   "\$PROJECT_DIR/ssl/privkey.pem"
+# Overwrite in place (preserve inode) so the single-file bind mount stays valid.
+cat "\$LIVE/fullchain.pem" > "\$PROJECT_DIR/ssl/fullchain.pem"
+cat "\$LIVE/privkey.pem"   > "\$PROJECT_DIR/ssl/privkey.pem"
+chmod 644 "\$PROJECT_DIR/ssl/fullchain.pem"
+chmod 600 "\$PROJECT_DIR/ssl/privkey.pem"
 if [ -n "\$PODMAN_USER" ]; then
     chown "\$PODMAN_USER:\$(id -gn "\$PODMAN_USER")" "\$PROJECT_DIR/ssl/fullchain.pem" "\$PROJECT_DIR/ssl/privkey.pem"
     uid="\$(id -u "\$PODMAN_USER")"
-    runuser -u "\$PODMAN_USER" -- env XDG_RUNTIME_DIR="/run/user/\$uid" "\$ENGINE" exec llm-gw-nginx nginx -s reload
+    runuser -u "\$PODMAN_USER" -- env XDG_RUNTIME_DIR="/run/user/\$uid" HOME="/home/\$PODMAN_USER" PATH="/home/\$PODMAN_USER/.local/bin:/usr/bin:/bin" "\$ENGINE" exec llm-gw-nginx nginx -s reload
 else
     "\$ENGINE" exec llm-gw-nginx nginx -s reload
 fi
