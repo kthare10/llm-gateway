@@ -205,3 +205,20 @@ renewal **deploy hook** at `/etc/letsencrypt/renewal-hooks/deploy/llm-gateway.sh
 so the system `certbot` timer re-copies the renewed cert and reloads nginx
 automatically. It's entirely optional — skip it and drop your own certs into
 `ssl/fullchain.pem` + `ssl/privkey.pem` instead.
+
+**Why the cert is written in place.** `docker-compose.yml` bind-mounts the two
+cert files individually (`./ssl/fullchain.pem:/etc/ssl/public.pem`). Podman
+resolves a single-file bind mount to an *inode* at container start, so replacing
+the file (`install`/`mv`, which allocates a new inode) leaves the running nginx
+pinned to the old inode — `nginx -s reload` keeps serving the stale cert until
+the container is restarted. Both the script and the generated deploy hook
+therefore overwrite the cert files in place (`cat > file`) to preserve the
+inode, so a plain reload picks up the new cert with zero downtime.
+
+**Testing a renewal.** `certbot renew` inserts a random delay of up to ~8 minutes
+before renewing (to spread load on Let's Encrypt), which makes an interactive
+dry-run look like it has hung. Add `--no-random-sleep-on-renew` when testing:
+
+```bash
+sudo certbot renew --dry-run --no-random-sleep-on-renew
+```
