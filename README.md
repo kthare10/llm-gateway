@@ -501,7 +501,33 @@ Delete unused keys from the `/keys` page or ask an admin to delete them from `/a
 ### LiteLLM Admin UI (`/litellm/`) shows errors
 
 - The LiteLLM UI credentials are `LITELLM_UI_USERNAME` and `LITELLM_UI_PASSWORD` from `.env`
+  (docker-compose passes these to the container as `UI_USERNAME` / `UI_PASSWORD`, which is
+  what LiteLLM actually reads -- if login 401s, check that mapping is intact)
 - If you see "Unexpected token" errors, ensure the NGINX config includes the `location /litellm-asset-prefix/` and `location ~ ^/(v2|health|key|model|...)` blocks that proxy LiteLLM's API paths
+
+### LiteLLM Admin UI shows $0 usage (but requests are clearly being made)
+
+Almost always a **stale browser session**, not broken spend tracking. The UI's login JWT
+carries a `key` claim holding a virtual session key that **expires 24h after login**
+(stored under team_id `litellm-dashboard`). Once it expires, every usage endpoint returns
+401 and the Usage page renders `$0` with no visible error.
+
+- **Fix:** log out and back in, or clear cookies + localStorage for the site.
+- **Confirm it:** `docker compose logs litellm | grep -B18 'daily/activity.*401'` -- look for
+  `Authentication Error - Expired Key`. Real browser calls carry `page_size=1000&timezone=240`.
+- **Prove the data is fine:** query the DB directly, or hit the API with the master key:
+  `select sum(spend) from "LiteLLM_SpendLogs";` / `GET /global/spend`
+- Note `/global/spend/report` is enterprise-only (400 without `LITELLM_LICENSE`), so panels
+  backed by it stay empty regardless.
+
+### Reported spend does not match the cloud provider's bill
+
+Expected -- LiteLLM estimates cost from token counts and a static price table; it never sees
+the provider's meter. See the notes at the top of `litellm/config.yaml`: the usual culprit is
+`base_model` silently redirecting the cost lookup to a cheaper model. Pin explicit
+`input_cost_per_token` / `output_cost_per_token` / `cache_read_input_token_cost` in
+`litellm_params` and verify with `GET /model/info`. Fixing this is forward-only; historical
+rows in `LiteLLM_SpendLogs` and the daily aggregate tables keep their original prices.
 
 ### Self-hosted models not reachable
 
