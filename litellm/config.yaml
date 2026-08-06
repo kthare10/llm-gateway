@@ -1,3 +1,40 @@
+# Cost tracking note
+# -------------------
+# LiteLLM's reported spend is an ESTIMATE: token counts x a static price table. It
+# never sees the provider's meter, so it will not reconcile exactly with an Azure bill:
+# list prices only (EA/CSP discounts and PTU commitments are invisible to it), the price
+# table is only a snapshot, and failed requests are logged at $0 even when the provider
+# meters the tokens they consumed.
+#
+# Two different caches, billed differently -- do not conflate them:
+#
+#  - A hit on LiteLLM's own Redis response cache (`litellm_settings.cache`) costs $0,
+#    correctly, because no upstream request is made at all.
+#  - A provider PROMPT-cache read is a real billed request. It is charged at a discount,
+#    not for free -- see `cache_read_input_token_cost` below.
+#
+# Two traps worth knowing:
+#
+#  1. `base_model` redirects the COST lookup, not just param/context handling. If it
+#     names a cheaper model than the real deployment, all spend is silently mispriced.
+#  2. Cost lookup is keyed by (model, provider). A `base_model` whose prefix names a
+#     DIFFERENT provider (e.g. `azure_ai/...` on an `azure/...` deployment) fails to
+#     resolve and spend falls back to $0 with no error.
+#
+# The reliable fix for both is explicit rates in `litellm_params` (NOT `model_info`);
+# these win over `base_model`. Include `cache_read_input_token_cost` -- with prompt
+# caching it is usually the dominant term. Verify what the proxy resolved with
+# `GET /model/info` -> `model_info.input_cost_per_token`.
+#
+# `base_model` is still set on the entries below, deliberately: it drives param and
+# context-window handling (it is what stops gpt-5.x deployments 400ing on max_tokens).
+# Because the explicit rates above take precedence, it no longer affects cost -- which is
+# why trap 1 does not apply here despite `azure/gpt-5` being cheaper than some of these
+# deployments. Keep both: `base_model` for behaviour, explicit rates for cost.
+#
+# Rates below are list prices from LiteLLM's own cost map. Update them to match your
+# Azure agreement.
+
 model_list:
   - model_name: gpt-5.3-codex
     litellm_params:
@@ -5,8 +42,11 @@ model_list:
       api_base: https://your-resource.cognitiveservices.azure.com/
       api_key: os.environ/AZURE_API_KEY
       api_version: "2025-03-01-preview"
+      input_cost_per_token: 0.00000175
+      output_cost_per_token: 0.000014
+      cache_read_input_token_cost: 0.000000175
     model_info:
-      base_model: azure/gpt-4o
+      base_model: azure/gpt-5
       description: "Azure OpenAI GPT-5.3-codex"
       supports_function_calling: true
 
@@ -16,8 +56,11 @@ model_list:
       api_base: https://your-resource.cognitiveservices.azure.com/
       api_key: os.environ/AZURE_API_KEY
       api_version: "2025-03-01-preview"
+      input_cost_per_token: 0.00000075
+      output_cost_per_token: 0.0000045
+      cache_read_input_token_cost: 0.000000075
     model_info:
-      base_model: azure/gpt-4o-mini
+      base_model: azure/gpt-5-mini
       description: "Azure OpenAI GPT-5.4-mini"
       supports_function_calling: true
 
@@ -27,8 +70,11 @@ model_list:
       api_base: https://your-resource.cognitiveservices.azure.com/
       api_key: os.environ/AZURE_API_KEY
       api_version: "2025-03-01-preview"
+      input_cost_per_token: 0.00003
+      output_cost_per_token: 0.00018
+      cache_read_input_token_cost: 0.000003
     model_info:
-      base_model: azure/gpt-4o
+      base_model: azure/gpt-5
       description: "Azure OpenAI GPT-5.4-pro"
       supports_function_calling: true
 
@@ -38,6 +84,9 @@ model_list:
       api_base: https://your-resource.cognitiveservices.azure.com/
       api_key: os.environ/AZURE_API_KEY
       api_version: "2025-03-01-preview"
+      input_cost_per_token: 0.000002
+      output_cost_per_token: 0.000008
+      cache_read_input_token_cost: 0.0000005
     model_info:
       base_model: azure/o3
       description: "Azure OpenAI o3"
@@ -55,6 +104,9 @@ model_list:
       supports_function_calling: false
       supports_vision: false
       mode: image_generation
+      # NOTE: image generation still logs $0 spend. Per-token rates do not apply --
+      # cost comes from the quality/size-keyed cost-map entries (e.g.
+      # azure/medium/1024-x-1024/gpt-image-1). Not yet wired up here.
 
   - model_name: Kimi-K2.6
     litellm_params:
@@ -62,6 +114,11 @@ model_list:
       api_base: https://your-resource.cognitiveservices.azure.com/
       api_key: os.environ/AZURE_API_KEY
       api_version: "2025-03-01-preview"
+      # No cost-map entry exists for azure/Kimi-K2.6 (only azure_ai/kimi-k2.6, which
+      # will not resolve under the `azure` provider), so spend logs as $0 without these.
+      # No cache-read rate is published, so cached tokens bill at the full input rate.
+      input_cost_per_token: 0.00000095
+      output_cost_per_token: 0.000004
     model_info:
       description: "Azure OpenAI Kimi-K2.6"
       supports_function_calling: true

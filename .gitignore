@@ -9,6 +9,7 @@ gateway-api/**/__pycache__/
 gateway-app/node_modules/
 gateway-app/.next/
 gateway-app/out/
+gateway-app/tsconfig.tsbuildinfo
 *.pyc
 .DS_Store
 .idea/
