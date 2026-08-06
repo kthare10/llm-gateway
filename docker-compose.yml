@@ -99,8 +99,10 @@ services:
       - LITELLM_LOG=INFO
       - AZURE_API_KEY=${AZURE_API_KEY:-}
       - OPENAI_API_KEY=${OPENAI_API_KEY:-}
-      - LITELLM_UI_USERNAME=${LITELLM_UI_USERNAME:-admin}
-      - LITELLM_UI_PASSWORD=${LITELLM_UI_PASSWORD:-}
+      # LiteLLM reads UI_USERNAME / UI_PASSWORD (see litellm/proxy/auth/login_utils.py).
+      # The LITELLM_-prefixed names are kept on the .env side for backwards compatibility.
+      - UI_USERNAME=${LITELLM_UI_USERNAME:-admin}
+      - UI_PASSWORD=${LITELLM_UI_PASSWORD:-}
     command: >
       --config /app/config.yaml
       --port 4000
