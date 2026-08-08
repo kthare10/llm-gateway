@@ -91,6 +91,9 @@ services:
     container_name: llm-gw-litellm
     volumes:
       - ./litellm/config.yaml:/app/config.yaml:ro
+      # Callback modules are resolved relative to the config file's directory,
+      # so they must be mounted alongside /app/config.yaml -- not on sys.path.
+      - ./litellm/custom_sanitize.py:/app/custom_sanitize.py:ro
     environment:
       - LITELLM_MASTER_KEY=${LITELLM_MASTER_KEY}
       - DATABASE_URL=postgresql://litellm:${LITELLM_POSTGRES_PASSWORD}@litellm-db:5432/litellm
