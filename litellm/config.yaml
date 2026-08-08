@@ -131,6 +131,11 @@ router_settings:
   timeout: 600
 
 litellm_settings:
+  # Workaround for the Codex CLI 0.147.0 empty tool-description regression
+  # (openai/codex#37380). Azure's Responses validator rejects description="";
+  # the hook substitutes a non-empty value. Drop once clients are upgraded.
+  callbacks:
+    - custom_sanitize.sanitize_handler
   cache: true
   cache_type: redis
   drop_params: true

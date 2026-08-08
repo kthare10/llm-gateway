@@ -529,6 +529,54 @@ the provider's meter. See the notes at the top of `litellm/config.yaml`: the usu
 `litellm_params` and verify with `GET /model/info`. Fixing this is forward-only; historical
 rows in `LiteLLM_SpendLogs` and the daily aggregate tables keep their original prices.
 
+### Client sends an empty tool `description` and the provider 400s
+
+Symptom -- every request from a given client fails immediately, e.g. against Azure:
+
+```
+litellm.BadRequestError: AzureException BadRequestError -
+  Invalid 'input[0].tools[0].description': empty string. Expected a string with
+  minimum length 1, but got an empty string instead.   (code: empty_string)
+```
+
+Some providers accept an empty tool `description` and some reject it, so a client
+bug here shows up only on part of your backend fleet. The concrete case this repo
+ships a guard for is Codex CLI 0.147.0 ([openai/codex#37380]), which wraps its
+default tools in a `namespace` container and emits it with `"description": ""`.
+
+`litellm/custom_sanitize.py` is registered under `litellm_settings.callbacks` and
+substitutes a non-empty value before the request leaves the proxy. It is a no-op
+for well-formed requests. Notes if you adapt it:
+
+- **Substitute, never delete.** `description` is required on namespace tools;
+  removing the key just trades the error for `missing_required_parameter`.
+- **Only rewrite tool definitions.** The hook touches the top-level `tools`
+  array and the `tools` of an `additional_tools` input item -- nothing else.
+  Two traps a looser walk falls into, both of which silently corrupt the
+  transcript and invalidate prompt-cache prefixes to fix a field no provider
+  was validating:
+  - Recursing into message content or tool results. Structured output echoed
+    back in the conversation (say a tool that returned
+    `{"name": "widget", "description": ""}`) is caller data.
+  - Matching `input` items on "has a `tools` key" instead of on `type`.
+    Other item types carry a `tools` array too -- notably `mcp_list_tools`,
+    which is a replayed record of a previous turn's output, not a definition
+    being registered.
+
+  Matching by `type` means a client that renames the item stops being fixed.
+  That is the correct way to fail: better to miss a fix than to mutate history.
+- The hook fires for the Responses API too -- `/v1/responses` reaches
+  `async_pre_call_hook` with `call_type="aresponses"`.
+- Callback modules resolve **relative to the config file's directory**, not
+  `sys.path`, which is why the mount target is `/app/custom_sanitize.py`.
+- Confirm it is live: `docker compose logs litellm | grep sanitize_empty_descriptions`
+  (with `--num_workers N`, expect up to N startup lines -- one per worker).
+
+Client-side alternatives, if you would rather not run the hook: pin Codex to
+0.146.1, or use a model group that takes the legacy flat-tools path.
+
+[openai/codex#37380]: https://github.com/openai/codex/issues/37380
+
 ### Self-hosted models not reachable
 
 - Ensure the model container is on the `llm_backends` network: `docker network inspect llm_backends`
