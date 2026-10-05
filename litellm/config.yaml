@@ -123,6 +123,45 @@ model_list:
       description: "Azure OpenAI Kimi-K2.6"
       supports_function_calling: true
 
+  - model_name: Kimi-K2.7-Code
+    litellm_params:
+      model: azure/Kimi-K2.7-Code
+      api_base: https://your-resource.cognitiveservices.azure.com/
+      api_key: os.environ/AZURE_API_KEY
+      api_version: "2025-03-01-preview"
+      # Rates mirror Kimi-K2.6 (no azure/Kimi-* cost-map entry, so spend logs $0 without these).
+      input_cost_per_token: 0.00000095
+      output_cost_per_token: 0.000004
+    model_info:
+      description: "Azure OpenAI Kimi-K2.7-Code"
+      supports_function_calling: true
+
+  - model_name: gpt-6.1-sol
+    litellm_params:
+      model: azure/gpt-6.1-sol
+      api_base: https://your-resource.cognitiveservices.azure.com/
+      api_key: os.environ/AZURE_API_KEY
+      api_version: "2025-03-01-preview"
+      # GPT-6 rates pinned (cost map predates gpt-6, would log $0); base_model gpt-5 for tokenizer.
+      input_cost_per_token: 0.00001
+      output_cost_per_token: 0.00005
+      cache_read_input_token_cost: 0.000001
+    model_info:
+      base_model: azure/gpt-5
+      description: "Azure OpenAI GPT-6.1 Sol"
+      supports_function_calling: true
+
+  - model_name: gpt-realtime-2.1
+    litellm_params:
+      model: azure/gpt-realtime-2.1
+      api_base: https://your-resource.cognitiveservices.azure.com/
+      api_key: os.environ/AZURE_API_KEY
+      api_version: "2025-03-01-preview"
+    model_info:
+      description: "Azure OpenAI GPT-Realtime-2.1 (Realtime audio; verify realtime session separately)"
+      mode: realtime
+      supports_function_calling: true
+
 router_settings:
   routing_strategy: simple-shuffle
   redis_host: redis
